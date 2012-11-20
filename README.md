@@ -5,12 +5,19 @@ These docs are still largely TODO.
 
 Asbo is a package-based build- and dependency-management system for projects.
 
+Get Started
+-------------
+Asbo needs Ruby 1.9 or later and depends on
+[trollop] (http://trollop.rubyforge.org/), and
+[zip] (http://rubygems.org/gems/zip)
+
+
 sources.yml
 -----------
 
 This file lives in .asbo/sources.yml, and tells Asbo where to find packages.
 
-A typical config.yml might look like this
+A typical sources.yml might look like this
 
 ```yaml
 $base: file://path/to/repo
@@ -81,5 +88,6 @@ dependencies:
 
 The package key defines the name of the project, and the dependencies consist of a list of `<package>:<version>:<build-config>` triplets.
 
-'source' dependencies are not retrieved from the repo, and must instead be build locally.
+'source' dependencies are not retrieved from the repo, and must instead be built locally.
 This allows the developer to use a bleeding-edge version of a package.
+
