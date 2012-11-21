@@ -85,9 +85,9 @@ A sample file:
 package: project_1
 
 dependencies:
-  - project_2:0.0.1:Release
-  - project_3:latest:Debug
-  - project_4:source:Debug
+  project_2: 0.0.1:Release
+  project_3: latest:Debug
+  project_4: source:Debug
 ```
 
 The package key defines the name of the project, and the dependencies consist of a list of `<package>:<version>:<build-config>` triplets.

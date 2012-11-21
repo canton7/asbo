@@ -19,7 +19,7 @@ module ASBO
 
     def dependencies
       return [] unless @config['dependencies']
-      @config['dependencies'].map{ |x| Dependency.new(*x.split(':', 3), @arch, @abi) }
+      @config['dependencies'].map{ |k,v| Dependency.new(k, *v.split(':', 2), @arch, @abi) }
     end
 
     def to_dep(build_config, version)
