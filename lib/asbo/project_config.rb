@@ -3,6 +3,7 @@ require 'yaml'
 module ASBO
   class ProjectConfig
     include Logger
+    include DSLEval
 
     attr_reader :arch, :abi, :project_dir, :build_config
 
@@ -10,6 +11,11 @@ module ASBO
       @arch, @abi, @build_config, @project_dir = arch, abi, build_config, project_dir
       buildfile = File.join(project_dir, BUILDFILE)
       raise AppError,  "Can't find buildfile at #{File.expand_path(buildfile)}" unless File.file?(buildfile)
+
+      @config = {}
+
+
+
       @config = YAML::load_file(buildfile)
       raise AppError,  "Invalid buildfile (no package specified)" unless @config && @config.has_key?('package')
 
@@ -17,8 +23,9 @@ module ASBO
       @config.merge!(YAML::load_file(personal_buildfile)) if File.file?(personal_buildfile)
     end
 
-    def package
-      @config['package']
+    def project(value=nil)
+      @config[:project] = value if value
+      @config[:project]
     end
 
     def dependencies
