@@ -45,8 +45,8 @@ module ASBO
       package_manager.publish_zip(file, version, overwrite)
     end
 
-    def package
-      package_manager.package_to_zip(@project_dir)
+    def package(output=nil)
+      package_manager.package_to_zip(@project_dir, output)
     end
 
     def clobber

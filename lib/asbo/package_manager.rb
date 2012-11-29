@@ -6,7 +6,7 @@ module ASBO
 
     PUBLISH_RULES = {
       'inc/.' => 'inc',
-      'bin/.' => 'bin',
+      'bin' => 'bin',
       'lib/.' => 'lib',
     }
 
@@ -101,16 +101,24 @@ module ASBO
       end
     end
 
-    def package_to_zip(source)
-      dir = Dir.mktmpdir
-      # TODO this could be done better
-      zip = File.join(dir, 'packaged.zip')
-      package_project(source, dir)
+    # Default to outputting to temp file, but allow override
+    def package_to_zip(source, output=nil)
+      zip = output ? output : File.join(Dir.mktmpdir, 'packaged.zip')
       log.debug "Creating zip: #{zip}"
-      Dir.chdir(dir) do 
+
+      Dir.chdir(source) do 
         Zip::ZipFile.open(zip, Zip::ZipFile::CREATE) do |zipfile|
-          Dir['**/*'].each do |file|
-            zipfile.add(file, file)
+          zipfile.add(BUILDFILE, BUILDFILE)
+          (PUBLISH_RULES.merge(@project_config.publish_rules)).each do |from, to|
+            # Try and copy FileUtils.cp_r...
+            log.debug from.sub(/\/\.$/, '/**/*')
+            from_glob = from.sub(/\/\.$/, '/**/*')
+
+            Dir.glob(from_glob).each do |file|
+              log.debug "From: #{from}, To: #{to}, File: #{file}, Subbing: #{Regexp.escape(File.dirname(from))}"
+              zipfile.add(File.join(to, file.sub(/^#{Regexp.escape(File.dirname(from))}/, '')), file)
+              log.debug "Adding #{file} to #{File.join(to, file.gsub(/^#{Regexp.escape(File.dirname(from))}/, ''))}"
+            end
           end
         end
       end
