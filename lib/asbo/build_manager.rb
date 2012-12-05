@@ -44,7 +44,7 @@ module ASBO
        if !@package && @project_config.packages.count > 1
         raise AppError, "You must provide a package to post-build, as this project has multiple packages" 
       end
-      log.info "Performing post-build action for package #{@project_config.project_package}"
+      log.info "Performing post-build action for package #{@project_config.package}"
       version = ENV['VERSION'] || SOURCE_VERSION
       package_manager.cache_project(version)
 
@@ -56,7 +56,7 @@ module ASBO
       if @package
         packages = [@package]
       else
-        packages = @project_config.packages.empty? ? [nil] : @project_config.packages
+        packages = @project_config.package_names.empty? ? [nil] : @project_config.package_names
       end
       # packages = @package ? [@package] : @project_config.packages
       packages.each do |package|
@@ -70,7 +70,7 @@ module ASBO
     # If package is nil, package the default package, otherwise package the specified one
     def package(output=nil, package=nil)
       # Allow overwriting...
-      @project_config.package = package
+      @project_config.package_name = package
       package_manager.package_to_zip(@project_dir, output)
     end
 

@@ -18,7 +18,7 @@ module ASBO
 
     def download_dependencies(project_config=nil)
       project_config ||= @project_config
-      log.info "Resolving dependencies for #{project_config.project_package}..."
+      log.info "Resolving dependencies for #{project_config.package}..."
       deps = project_config.dependencies
       log.debug "No dependencies found" if deps.empty?
       deps.each do |dep|
@@ -36,12 +36,11 @@ module ASBO
     end
 
     def dependency_path(dep)
-     package_path(dep.project, dep.package, dep.version)
+     package_path(dep.package, dep.version)
     end
 
-    def package_path(project, package, version)
-      package_str = package.nil? ? '' : "#{package}-"
-      File.join(@workspace_config.cache_dir, "#{project}-#{package_str}#{version}")
+    def package_path(package, version)
+      File.join(@workspace_config.cache_dir, "#{package}-#{version}")
     end
 
     def headers_path(dep)
@@ -84,9 +83,9 @@ module ASBO
 
     def cache_project(version)
       src = @project_config.project_dir
-      dest = package_path(@project_config.project, @project_config.package, version)
+      dest = package_path(@project_config.package, version)
 
-      log.info "Caching #{@project_config.project_package} to #{dest}"
+      log.info "Caching #{@project_config.package} to #{dest}"
       # TODO tell them how to nuke this, when we implement it
       log.warn "Overwriting previously-cached copy of version #{version}" if File.directory?(dest) && version != SOURCE_VERSION
       FileUtils.rm_rf(dest)
@@ -127,7 +126,8 @@ module ASBO
     end
 
     def publish_zip(zip, version, overwrite=false)
-      repo = Repo.factory(@workspace_config, @project_config.project_package, version, 'release', :publish)
+      puts "PACKAGE: #{@project_config.package}"
+      repo = Repo.factory(@workspace_config, @project_config.package, version, 'release', :publish)
       raise AppError, "Repo #{repo} doesn't know how to publish packages" unless repo.respond_to?(:publish)
       repo.publish(zip, overwrite)
     end
@@ -143,7 +143,7 @@ module ASBO
       if dep_downloaded?(dep)
         log.debug "Source dependency #{dep} found"
       else
-        raise AppError,  "#{@project_config.project_package} specifies #{dep} as a dependency. This is a source dependency, so you need to build it"
+        raise AppError,  "#{@project_config.package} specifies #{dep} as a dependency. This is a source dependency, so you need to build it"
       end
     end
 
@@ -158,14 +158,16 @@ module ASBO
     def download_dep(dep)
       log.info "Downloading #{dep}"
       type = dep.is_latest? ? 'latest' : 'release'
-      repo = Repo.factory(@workspace_config, dep.project_package, dep.version, type)
+      repo = Repo.factory(@workspace_config, dep.package, dep.version, type)
       file = repo.download
       log.info "Extracting #{dep}"
       extract_package(file, dep)
       # Now get recursive deps, if and only if the buildifle exists
       # We warn about it not existing when we look at recursive dependencies in a bit
       if File.file?(File.join(dependency_path(dep), BUILDFILE))
-        download_dependencies(ProjectConfig.new(dependency_path(dep), dep.arch, dep.abi, @project_config.build_config, dep.package))
+        p = ProjectConfig.new(dependency_path(dep), dep.arch, dep.abi, @project_config.build_config)
+        p.package = dep.package
+        download_dependencies()
       end
     end
 
