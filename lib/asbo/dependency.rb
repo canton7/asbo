@@ -10,10 +10,6 @@ module ASBO
       @version == SOURCE_VERSION
     end
 
-    def is_latest?
-      @version == LATEST_VERSION
-    end
-
     def to_s
       "#{@package}-#{@version}" 
     end

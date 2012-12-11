@@ -16,7 +16,24 @@ module ASBO
       @workspace_config, @project_config = workspace_config, project_config
     end
 
+    def resolve_deps
+      project_config ||= @project_config
+      log.info "Resolving dependencies for #{project_config.package}..."
+      deps = project_config.dependencies
+      # package -> array of versions (or project_configs? Or something?)
+      possible_packages = Hash.new{ |h,k| h[k] = [] }
+      # Now we have a list of packages and constraints. Let's get a list of available versions
+      deps.each do |dep|
+        puts "LOOKING AT #{dep}"
+        repo = Repo.factory(@workspace_config, dep.package, nil, 'release')
+        repo.list_versions
+      end
+    end
+
     def download_dependencies(project_config=nil)
+      # For test
+      resolve_deps
+
       project_config ||= @project_config
       log.info "Resolving dependencies for #{project_config.package}..."
       deps = project_config.dependencies
@@ -171,8 +188,7 @@ module ASBO
 
     def download_dep(dep)
       log.info "Downloading #{dep}"
-      type = dep.is_latest? ? 'latest' : 'release'
-      repo = Repo.factory(@workspace_config, dep.package, dep.version, type)
+      repo = Repo.factory(@workspace_config, dep.package, dep.version, 'release')
       file = repo.download
       log.info "Extracting #{dep}"
       extract_package(file, dep)

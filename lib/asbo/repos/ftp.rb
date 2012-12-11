@@ -11,6 +11,7 @@ module ASBO::Repo
         'version' => version,
       }
 
+      @workspace_config = workspace_config
       source = workspace_config.resolve_config_vars(source, vars, package)
       url = source['url']
       parsed_url = URI::parse(url)
@@ -21,6 +22,43 @@ module ASBO::Repo
       @buildfile_path = parsed_url.path + '.' << ASBO::BUILDFILE
 
       log.debug "Got Host: #{@host}, Path: #{@package_path}, User: #{@user}"
+    end
+
+    def list_versions
+      # This is a fun one. We have a @package_path without the $version variable filled out
+      # We need to get the 'initial directory' bit of the path, cd there, then glob (aka recursive ls), matching
+      # all listed files against @package_path to extract their version. Yay.
+      path_parts = @package_path.split('/')
+      initial_folder = path_parts.take_while{ |x| x !~ ASBO::WorkspaceConfig::VARIABLE_FIND_REGEX }.join('/')
+
+      folder_stack = [initial_folder]
+      version_list = []
+
+      ftp_session do |ftp|
+        until folder_stack.empty?
+          folder = folder_stack.pop
+          ftp.chdir(folder)
+          files, folders = ls(ftp)
+          folder_stack.push(*folders)
+          version_list.push(*files.map{ |f| @workspace_config.parse_source_variables(@package_path, folder + '/' << f)['version'] })
+        end
+      end
+
+      p version_list
+    end
+
+    def ftp_session
+      log.debug "Connecting to #{@host}"
+      Net::FTP.open(@host) do |ftp|
+        begin
+          ftp.login(@user, @pass)
+        rescue Net::FTPPermError => e 
+          raise ASBO::AppError, "Failed to log in to ftp: #{e.message}"
+        end
+        ftp.passive = true
+        log.debug "Logged in"
+        yield ftp
+      end
     end
 
     def download
@@ -89,6 +127,12 @@ module ASBO::Repo
           log.info "Uploaded #{path}"
         end
       end
+    end
+
+    def ls(ftp)
+      results = ftp.ls
+      folders, files = results.partition{ |x| x[0] == 'd'}
+      [files.map{ |x| x.split(/\s/).last }, folders.map{ |x| x.split(/\s/).last }]
     end
   end
 end

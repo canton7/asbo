@@ -77,6 +77,13 @@ module ASBO
       Hash[vars.map{ |k,v| [k[1..-1], v] }]
     end
 
+    def parse_source_variables(source, string)
+      # Convert the source into regex which we can use to match against the string
+      r = Regexp.new('\A' << source.gsub(VARIABLE_FIND_REGEX, '(?<\1>[a-zA-Z][a-zA-Z0-9_]*)') << '\Z')
+      m = r.match(string)
+      Hash[m.names.zip(m.captures)]
+    end
+
     def find_workspace(start_dir)
       folder = File.expand_path(start_dir)
       until File.exists?(File.join(folder, WORKSPACE_INDICATOR)) do
