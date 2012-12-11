@@ -20,8 +20,8 @@ module ASBO::Repo
       @path
     end
 
-    def publish(file, overwrite=false)
-      log.debug "Publishing #{file} to #{@path}"
+    def publish(package, buildfile, overwrite=false)
+      log.debug "Publishing #{package} to #{@path}"
 
       begin
        FileUtils.mkdir_p(@path) unless ::File.directory?(@path)

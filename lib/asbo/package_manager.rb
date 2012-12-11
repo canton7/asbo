@@ -64,6 +64,9 @@ module ASBO
       @project_config.dependencies.each do |dep|
         r.push(*recursive_dependencies(dep))
       end
+
+      check_dependency_version_conflcits(r)
+
       r
     end
 
@@ -73,12 +76,21 @@ module ASBO
         log.warn "Unable to find buildfile for #{dep}"
         return [dep]
       end
-      deps = ProjectConfig.new(dependency_path(dep), dep.arch, dep.abi, @project_config.build_config, dep.package).dependencies
+      proj_conf = ProjectConfig.new(dependency_path(dep), dep.arch, dep.abi, @project_config.build_config)
+      proj_conf.package = dep.package
+      deps = proj_conf.dependencies
       r = [dep]
       deps.each do |d|
         r.push(*recursive_dependencies(d))
       end
       r
+    end
+
+    def check_dependency_version_conflcits(deps)
+      types = deps.inject(Hash.new{ |h,k| h[k] = []}){ |s,d| s[d.package] << d; s }
+      types.each do |type, deps|
+        raise "BALH" unless deps.map{ |x| x.version }.uniq.length == 1
+      end
     end
 
     def cache_project(version)
@@ -125,11 +137,13 @@ module ASBO
       zip
     end
 
-    def publish_zip(zip, version, overwrite=false)
-      puts "PACKAGE: #{@project_config.package}"
+    def publish_project(source, version, overwrite)
       repo = Repo.factory(@workspace_config, @project_config.package, version, 'release', :publish)
       raise AppError, "Repo #{repo} doesn't know how to publish packages" unless repo.respond_to?(:publish)
-      repo.publish(zip, overwrite)
+      log.debug "Publishing buildfile"
+      buildfile = File.join(source, ASBO::BUILDFILE)
+      zip = package_to_zip(source)
+      repo.publish(zip, buildfile, overwrite)
     end
 
     def clobber

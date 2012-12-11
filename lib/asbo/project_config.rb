@@ -58,12 +58,13 @@ module ASBO
     def package=(val)
       # We're passed the package name with the project prefix
       package = (val == @project) ? nil : val.sub(/^#{@project}-/, '')
-      puts "PASSED PACKAGE #{package} FOR PROJECT #{@project}"
     end
 
     def dependencies
       dep_config = [*@config.get('project.depends', [])]
       dep_config.push(*@config.get("package.#{@package_name}.depends", [])) if @package_name
+
+      our_dep = to_dep(@build_config, nil)
 
       return [] unless dep_config
       [*dep_config].map do |x|
@@ -74,7 +75,7 @@ module ASBO
         elsif config.empty?
           config = @build_config
         end
-        Dependency.new(package, version, config, @arch, @abi)
+        Dependency.new(package, version, config, @arch, @abi, our_dep)
       end
     end
 

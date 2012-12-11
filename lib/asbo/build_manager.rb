@@ -62,8 +62,7 @@ module ASBO
       packages.each do |package|
         package_str = package ? " #{package}" : ''
         log.info "Performing publish action for package#{package_str}, version #{version}"
-        file = package(nil, package)
-        package_manager.publish_zip(file, version, overwrite)
+        package_manager.publish_project(@project_dir, version, overwrite)
       end
     end
 

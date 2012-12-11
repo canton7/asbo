@@ -8,4 +8,5 @@ module ASBO
   SOURCE_VERSION = 'source'
   LATEST_VERSION = 'latest'
   PACKAGE_FILES = []
+  PACKAGE_EXTENSION = '.zip'
 end

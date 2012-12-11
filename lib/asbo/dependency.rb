@@ -1,9 +1,9 @@
 module ASBO
   class Dependency
-    attr_reader :package, :version, :build_config, :arch, :abi
+    attr_reader :package, :version, :build_config, :arch, :abi, :dep_of
 
-    def initialize(package, version, build_config, arch, abi)
-      @package, @version, @build_config, @arch, @abi = package, version, build_config, arch, abi
+    def initialize(package, version, build_config, arch, abi, dep_of=nil)
+      @package, @version, @build_config, @arch, @abi, @dep_of = package, version, build_config, arch, abi, dep_of
     end
 
     def is_source?
