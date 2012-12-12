@@ -25,9 +25,17 @@ module ASBO
       # Now we have a list of packages and constraints. Let's get a list of available versions
       deps.each do |dep|
         puts "LOOKING AT #{dep}"
-        repo = Repo.factory(@workspace_config, dep.package, nil, 'release')
-        repo.list_versions
+        if SemVersion.open_constraint?(dep.version_constraint)
+          # OK, so the contraint's open. See what's around
+          repo = Repo.factory(@workspace_config, dep.package, nil, 'release')
+          versions = repo.list_versions
+          possible_packages[dep.package] << versions.select{ |x| SemVersion.new(x).satisfies?(x) }
+        else
+          possible_packages[dep.package] << SemVersion.split_constraint(dep.version_constraint)[1]
+        end
       end
+
+      p possible_packages
     end
 
     def download_dependencies(project_config=nil)
@@ -53,7 +61,7 @@ module ASBO
     end
 
     def dependency_path(dep)
-     package_path(dep.package, dep.version)
+      package_path(dep.package, dep.version)
     end
 
     def package_path(package, version)

@@ -1,4 +1,5 @@
 require 'trollop'
+require 'sem_version'
 
 require_relative 'asbo/ini_parser'
 require_relative 'asbo/app_error'
