@@ -79,9 +79,17 @@ module ASBO
 
     def parse_source_variables(source, string)
       # Convert the source into regex which we can use to match against the string
-      r = Regexp.new('\A' << source.gsub(VARIABLE_FIND_REGEX, '(?<\1>[a-zA-Z][a-zA-Z0-9_]*)') << '\Z')
-      m = r.match(string)
-      Hash[m.names.zip(m.captures)]
+      # Find the positions of all variable names
+      variables = source.scan(VARIABLE_FIND_REGEX).flatten
+      r = Regexp.new('\A' << source.gsub(VARIABLE_FIND_REGEX, '([a-zA-Z][a-zA-Z0-9_]*)') << '\Z')
+      match = r.match(string)
+      if match.nil?
+        # No match. Return nil
+        return nil
+      end
+      captures = variables.zip(match.captures)
+      # Collect into a hash of variable => values
+      captures.inject(Hash.new{ |h,k| h[k] = []}){ |s,(k,v)| s[k] << v; s }
     end
 
     def find_workspace(start_dir)

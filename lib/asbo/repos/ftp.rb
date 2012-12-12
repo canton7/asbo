@@ -39,12 +39,24 @@ module ASBO::Repo
           folder = folder_stack.pop
           ftp.chdir(folder)
           files, folders = ls(ftp)
-          folder_stack.push(*folders)
-          version_list.push(*files.map{ |f| @workspace_config.parse_source_variables(@package_path, folder + '/' << f)['version'] })
+          folder_stack.push(*folders) 
+          versions = files.map do |f|
+            package = folder + '/' << f
+            variables = @workspace_config.parse_source_variables(@package_path, package)
+            # No match? that's fine. we're allowed files which aren't packages
+            next if variables.nil?
+            versions = variables['version']
+            if versions.uniq.length > 1
+              raise AppError "Package #{package} found with multiple values for variable $version: #{versions.join(', ')}"
+            end
+            versions.first
+          end
+
+          version_list.push(*versions.compact)
         end
       end
 
-      p version_list
+      version_list
     end
 
     def ftp_session
