@@ -81,7 +81,7 @@ module ASBO
       # Convert the source into regex which we can use to match against the string
       # Find the positions of all variable names
       variables = source.scan(VARIABLE_FIND_REGEX).flatten
-      r = Regexp.new('\A' << source.gsub(VARIABLE_FIND_REGEX, '([a-zA-Z][a-zA-Z0-9_]*)') << '\Z')
+      r = Regexp.new('\A' << source.gsub(VARIABLE_FIND_REGEX, '(.+?)') << '\Z')
       match = r.match(string)
       if match.nil?
         # No match. Return nil

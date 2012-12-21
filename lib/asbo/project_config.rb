@@ -6,10 +6,10 @@ module ASBO
 
     attr_reader :arch, :abi, :project_dir, :build_config, :package
 
-    def initialize(project_dir, arch, abi, build_config, package_name=nil)
+    def initialize(buildfile, arch, abi, build_config, package_name=nil)
+      project_dir = File.dirname(buildfile)
       @arch, @abi, @build_config, @project_dir = arch, abi, build_config, project_dir
 
-      buildfile = File.join(project_dir, BUILDFILE)
       raise AppError,  "Can't find buildfile at #{File.expand_path(buildfile)}" unless File.file?(buildfile)
       @config = IniParser.new(buildfile).load
       raise AppError,  "Invalid buildfile (no project specified)" unless @config['project.name']

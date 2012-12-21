@@ -73,8 +73,14 @@ module ASBO::Repo
       end
     end
 
-    def download
-      file = Tempfile.new([@teamcity_package, ASBO::PACKAGE_EXTENSION])
+    def download_buildfile
+      download(@buildfile_path)
+    end
+
+    def download(file_to_download=nil)
+      file_to_download ||= @package_path
+
+      file = Tempfile.new
       file.binmode
 
       begin
@@ -87,7 +93,7 @@ module ASBO::Repo
           ftp.passive = true
           log.debug "Logged in. Now downloading..."
           begin
-            ftp.getbinaryfile(@package_path, nil, 1024) do |chunk|
+            ftp.getbinaryfile(file_to_download, nil, 1024) do |chunk|
               file.write(chunk)
             end
           rescue Net::FTPPermError => e 

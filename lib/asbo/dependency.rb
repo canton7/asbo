@@ -11,7 +11,7 @@ module ASBO
     end
 
     def to_s
-      "#{@package}-#{@version_constraint}" 
+      "#{@package} (#{@version_constraint})" 
     end
   end
 end

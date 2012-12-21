@@ -16,44 +16,87 @@ module ASBO
       @workspace_config, @project_config = workspace_config, project_config
     end
 
-    def resolve_deps
-      project_config ||= @project_config
-      log.info "Resolving dependencies for #{project_config.package}..."
-      deps = project_config.dependencies
-      # package -> array of versions (or project_configs? Or something?)
-      possible_packages = Hash.new{ |h,k| h[k] = [] }
+    def resolve_deps_level(deps, possible_packages=nil)
+      # package -> array of versions
+      possible_packages ||= Hash.new{ |h,k| h[k] = [] }
       # Now we have a list of packages and constraints. Let's get a list of available versions
+      p deps
       deps.each do |dep|
         puts "LOOKING AT #{dep}"
-        if SemVersion.open_constraint?(dep.version_constraint)
-          # OK, so the contraint's open. See what's around
+        # If the key exists already, it means someone else has a dependency on that package
+        # and has already populated the array with the versions they accept
+        # In this case, just filter it. Otherwise populate it with all versions and then filter it
+        unless possible_packages.has_key?(dep.package)
+          # See what versions exist..
           repo = Repo.factory(@workspace_config, dep.package, nil, 'release')
-          versions = repo.list_versions
-          possible_packages[dep.package] << versions.select{ |x| SemVersion.new(x).satisfies?(x) }
-        else
-          possible_packages[dep.package] << SemVersion.split_constraint(dep.version_constraint)[1]
+          versions = repo.list_versions.select do |x|
+            unless SemVersion.valid?(x)
+              log.warn "Version #{x} for package #{dep.package} is not a valid semantic version. Ignoring"
+              false
+            else
+              true
+            end
+          end
+          possible_packages[dep].push(*versions.map{ |x| SemVersion.new(x) })
         end
+
+        # OK, so now we have a list of versions. Filter them!
+        possible_packages[dep].select!{ |x| x.satisfies?(dep.version_constraint) }
       end
 
       p possible_packages
+
+      # Turn that into [[{:package => a, :version => 1}, { ... }], [{ ... }]]
+      package_list = possible_packages.map do |k,v|
+        v.map{ |v2| {:package => k, :version => v2} }
+      end
+      # Get all combinations of all versions
+      # This leaves them sorted in a sensible order 
+      package_combinations = package_list[0].product(*package_list[1..-1])
+
+      # For each combination, try and resolve that further
+      # If a given resolution fails, try the next
+      package_combinations.each do |combination|
+
+      end
+
+
+      # # Now we have a hash of deps => allowed dep versions (which exist)
+      # # For each package, start with the hightest dep try and recursively resolve
+      # # If that fails, move onto the next...
+      # possible_packages.each do |dep, versions|
+      #   versions.sort!
+      #   log.debug "The following #{dep.package} versions are suitable: #{versions.join(', ')}"
+      #   versions.each do |version|
+      #     log.debug "Trying #{version}"
+      #     # TODO support source dependencies
+      #     project_config = download_buildfile(dep, version)
+
+      #     p project_config.dependencies
+      #   end
+
+      # end
+
+      # possible_packages
     end
 
     def download_dependencies(project_config=nil)
-      # For test
-      resolve_deps
-
       project_config ||= @project_config
-      log.info "Resolving dependencies for #{project_config.package}..."
-      deps = project_config.dependencies
-      log.debug "No dependencies found" if deps.empty?
-      deps.each do |dep|
-        log.debug "Processing dependency #{dep}"
-        if dep.is_source?
-          process_source_dep(dep)
-        else
-          process_package_dep(dep)
-        end
-      end
+      # For test
+      resolve_deps_level(project_config.dependencies)
+
+      # project_config ||= @project_config
+      # log.info "Resolving dependencies for #{project_config.package}..."
+      # deps = project_config.dependencies
+      # log.debug "No dependencies found" if deps.empty?
+      # deps.each do |dep|
+      #   log.debug "Processing dependency #{dep}"
+      #   if dep.is_source?
+      #     process_source_dep(dep)
+      #   else
+      #     process_package_dep(dep, )
+      #   end
+      # end
     end
 
     def dep_downloaded?(dep)
@@ -66,6 +109,10 @@ module ASBO
 
     def package_path(package, version)
       File.join(@workspace_config.cache_dir, "#{package}-#{version}")
+    end
+
+    def buildfile_path(package, version)
+      package_path(package, version) << ".#{BUILDFILE}"
     end
 
     def headers_path(dep)
@@ -186,24 +233,40 @@ module ASBO
       end
     end
 
-    def process_package_dep(dep)
+    def process_package_dep(dep, version)
       if dep_downloaded?(dep)
         log.debug "Package dependency #{dep} is already downloaded"
       else
-        download_dep(dep)
+        download_dep(dep, version)
       end
     end
 
-    def download_dep(dep)
+    def download_buildfile(dep, version)
+      buildfile_path = buildfile_path(dep.package, version)
+      if File.file?(buildfile_path)
+        log.debug "Buildfile for #{dep.package}-#{version} already downloaded"
+      else
+        log.info "Downloading buildfile for #{dep.package}-#{version}"
+        repo = Repo.factory(@workspace_config, dep.package, version, 'release')
+        file = repo.download_buildfile
+        FileUtils.mkdir_p(File.dirname(buildfile_path))
+        FileUtils.mv(file, buildfile_path)
+      end
+      pc = ProjectConfig.new(buildfile_path, dep.arch, dep.abi, @project_config.build_config)
+      pc.package = dep.package
+      pc
+    end
+
+    def download_dep(dep, version)
       log.info "Downloading #{dep}"
-      repo = Repo.factory(@workspace_config, dep.package, dep.version, 'release')
+      repo = Repo.factory(@workspace_config, dep.package, version, 'release')
       file = repo.download
       log.info "Extracting #{dep}"
       extract_package(file, dep)
       # Now get recursive deps, if and only if the buildifle exists
       # We warn about it not existing when we look at recursive dependencies in a bit
       if File.file?(File.join(dependency_path(dep), BUILDFILE))
-        p = ProjectConfig.new(dependency_path(dep), dep.arch, dep.abi, @project_config.build_config)
+        p = ProjectConfig.new(File.join(dependency_path(dep), BUILDFILE), dep.arch, dep.abi, @project_config.build_config)
         p.package = dep.package
         download_dependencies()
       end

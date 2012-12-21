@@ -9,7 +9,7 @@ module ASBO
       # for some reason, Dir.glob (later on) doesn't like backslashes
       project_dir = project_dir.gsub('\\', '/')
       @arch, @abi, @build_config, @compiler, @package, @project_dir = arch, abi, build_config, compiler, package, project_dir
-      @project_config = ProjectConfig.new(project_dir, arch, abi, build_config, package)
+      @project_config = ProjectConfig.new(File.join(project_dir, BUILDFILE), arch, abi, build_config, package)
       @workspace_config = WorkspaceConfig.new(project_dir)
       @verbose = false
       log.debug "Using project directory #{@project_dir}"
@@ -60,6 +60,7 @@ module ASBO
       end
       # packages = @package ? [@package] : @project_config.packages
       packages.each do |package|
+        @project_config.package_name = package
         package_str = package ? " #{package}" : ''
         log.info "Performing publish action for package#{package_str}, version #{version}"
         package_manager.publish_project(@project_dir, version, overwrite)
