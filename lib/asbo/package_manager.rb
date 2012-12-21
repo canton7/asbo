@@ -16,9 +16,13 @@ module ASBO
       @workspace_config, @project_config = workspace_config, project_config
     end
 
-    def resolve_deps_level(deps, possible_packages=nil)
+    def resolve_deps_level(packages, possible_packages=nil)
+      deps = []
+      packages.each{ |p| deps.push(*p.dependencies) }
       # package -> array of versions
-      possible_packages ||= Hash.new{ |h,k| h[k] = [] }
+      possible_packages ||= {}
+
+      deps.select!{ |x| !possible_packages.map{ |_,y| y[:dependency] }.include?(x) }
       # Now we have a list of packages and constraints. Let's get a list of available versions
       p deps
       deps.each do |dep|
@@ -37,19 +41,32 @@ module ASBO
               true
             end
           end
-          possible_packages[dep].push(*versions.map{ |x| SemVersion.new(x) })
+          possible_packages[dep.package] ||= {:dependency => dep, :versions => []}
+          possible_packages[dep.package][:versions].push(*versions.map{ |x| SemVersion.new(x) })
         end
 
         # OK, so now we have a list of versions. Filter them!
-        possible_packages[dep].select!{ |x| x.satisfies?(dep.version_constraint) }
+        possible_packages[dep.package][:versions].select!{ |x| x.satisfies?(dep.version_constraint) }
       end
 
       p possible_packages
 
+      # TODO raise if we fail the dep checks here (no package meets requirements)
+
+      # Filter possible_packages to ones that are new this round. We don't want to inspect
+      # them twice.
       # Turn that into [[{:package => a, :version => 1}, { ... }], [{ ... }]]
+      # puts "Filtered: "
+      # p possible_packages.select{ |k,v| deps.include?(v[:dependency]) }
       package_list = possible_packages.map do |k,v|
-        v.map{ |v2| {:package => k, :version => v2} }
+        v[:versions].map{ |v2| {:dependency => v[:dependency], :version => v2} }
       end
+
+      # p package_list
+
+      # If it's empty (or contains one element?), get out
+      return possible_packages if package_list.empty?
+
       # Get all combinations of all versions
       # This leaves them sorted in a sensible order 
       package_combinations = package_list[0].product(*package_list[1..-1])
@@ -57,8 +74,18 @@ module ASBO
       # For each combination, try and resolve that further
       # If a given resolution fails, try the next
       package_combinations.each do |combination|
+        # We have 
+        # TODO better deep clone
+        poss_packages = Marshal.load(Marshal.dump(possible_packages))
+        log.debug "Looking at combination: #{combination}"
+        # Does this combination work together? Try and resolve_deps on it
+        projs = combination.map{ |x| download_buildfile(x[:dependency], x[:version]) }
+        p projs.map{ |p| p.package }
 
+        resolve_deps_level(projs, poss_packages)
       end
+
+      possible_packages
 
 
       # # Now we have a hash of deps => allowed dep versions (which exist)
@@ -83,7 +110,7 @@ module ASBO
     def download_dependencies(project_config=nil)
       project_config ||= @project_config
       # For test
-      resolve_deps_level(project_config.dependencies)
+      resolve_deps_level([project_config])
 
       # project_config ||= @project_config
       # log.info "Resolving dependencies for #{project_config.package}..."

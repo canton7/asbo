@@ -80,7 +80,7 @@ module ASBO::Repo
     def download(file_to_download=nil)
       file_to_download ||= @package_path
 
-      file = Tempfile.new
+      file = Tempfile.new('temp')
       file.binmode
 
       begin
